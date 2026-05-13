@@ -11,7 +11,7 @@ const MIN_TOPUP_NPR = 10;
 const MAX_TOPUP_NPR = 500_000;
 
 function getSiteUrl() {
-  return process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  return process.env.FRONTEND_URL || process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 }
 
 function getKhaltiBaseUrl() {

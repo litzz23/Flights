@@ -5,7 +5,7 @@ import {
   useEffect,
   useCallback,
 } from "react";
-import { auth as authAPI } from "./api";
+import { API_URL, auth as authAPI } from "./api";
 
 const AuthContext = createContext(null);
 
@@ -34,7 +34,7 @@ export function AuthProvider({ children }) {
 
       if (adminToken) {
         jobs.push(
-          fetch("http://localhost:5001/api/admin/me", {
+          fetch(`${API_URL}/admin/me`, {
             headers: { Authorization: `Bearer ${adminToken}` },
           })
             .then(async (res) => {
@@ -76,7 +76,7 @@ export function AuthProvider({ children }) {
   };
 
   const adminLogin = async (email, password) => {
-    const res = await fetch("http://localhost:5001/api/admin/auth/login", {
+    const res = await fetch(`${API_URL}/admin/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
@@ -109,7 +109,7 @@ export function AuthProvider({ children }) {
     const token = localStorage.getItem("adminToken");
     if (!token) return;
     try {
-      const res = await fetch("http://localhost:5001/api/admin/me", {
+      const res = await fetch(`${API_URL}/admin/me`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();

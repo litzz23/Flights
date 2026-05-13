@@ -1,0 +1,34 @@
+services:
+  - type: web
+    name: binayak-flights-backend
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    autoDeploy: true
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: KHALTI_SECRET_KEY
+        sync: false
+      - key: KHALTI_BASE_URL
+        value: https://dev.khalti.com/api/v2
+      - key: FRONTEND_URL
+        sync: false
+      - key: NEXT_PUBLIC_SITE_URL
+        sync: false
+
+  - type: web
+    name: binayak-flights-frontend
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    autoDeploy: true
+    envVars:
+      - key: VITE_API_URL
+        sync: false

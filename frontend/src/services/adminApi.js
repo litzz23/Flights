@@ -1,7 +1,8 @@
 import axios from "axios";
+import { API_URL } from "../api";
 
 const adminApi = axios.create({
-  baseURL: "http://localhost:5001/api/admin",
+  baseURL: `${API_URL}/admin`,
 });
 
 adminApi.interceptors.request.use((config) => {
@@ -14,7 +15,7 @@ adminApi.interceptors.request.use((config) => {
 
 export const adminAuthApi = {
   login: async (body) =>
-    (await axios.post("http://localhost:5001/api/admin/auth/login", body)).data,
+    (await axios.post(`${API_URL}/admin/auth/login`, body)).data,
 };
 
 export const adminStatsApi = {
