@@ -62,7 +62,19 @@ function AuthPage() {
         return;
       }
 
-      await register(form.name, form.email, form.password, form.phone);
+      const result = await register(
+        form.name,
+        form.email,
+        form.password,
+        form.phone,
+      );
+
+      if (result?.verificationRequired === false) {
+        await login(form.email, form.password);
+        navigate(redirectTo, { replace: true });
+        return;
+      }
+
       setVerificationEmail(form.email);
       setOtp("");
       setVerifying(true);
@@ -166,10 +178,10 @@ function AuthPage() {
               ? "Enter the reset code and set a new password"
               : "Enter your email to receive a reset code"
             : verifying
-            ? "Enter the OTP sent to your email"
-            : isLogin
-              ? "Sign in to your account"
-              : "Create a new account"}
+              ? "Enter the OTP sent to your email"
+              : isLogin
+                ? "Sign in to your account"
+                : "Create a new account"}
         </p>
 
         {error && <div className="auth-error">{error}</div>}
@@ -183,11 +195,17 @@ function AuthPage() {
                   type="email"
                   placeholder="you@example.com"
                   value={forgot.email}
-                  onChange={(e) => setForgot({ ...forgot, email: e.target.value })}
+                  onChange={(e) =>
+                    setForgot({ ...forgot, email: e.target.value })
+                  }
                   required
                 />
               </div>
-              <button type="submit" className="auth-submit" disabled={otpLoading}>
+              <button
+                type="submit"
+                className="auth-submit"
+                disabled={otpLoading}
+              >
                 {otpLoading ? "Please wait..." : "Send Reset Code"}
               </button>
             </form>
@@ -204,7 +222,10 @@ function AuthPage() {
                   placeholder="6-digit code"
                   value={forgot.otp}
                   onChange={(e) =>
-                    setForgot({ ...forgot, otp: e.target.value.replace(/\D/g, "") })
+                    setForgot({
+                      ...forgot,
+                      otp: e.target.value.replace(/\D/g, ""),
+                    })
                   }
                   required
                   maxLength={6}
@@ -237,7 +258,11 @@ function AuthPage() {
                   minLength={6}
                 />
               </div>
-              <button type="submit" className="auth-submit" disabled={otpLoading}>
+              <button
+                type="submit"
+                className="auth-submit"
+                disabled={otpLoading}
+              >
                 {otpLoading ? "Resetting..." : "Reset Password"}
               </button>
             </form>

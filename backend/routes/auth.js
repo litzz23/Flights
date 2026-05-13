@@ -38,6 +38,16 @@ function generateOtpCode() {
   return String(crypto.randomInt(100000, 1000000));
 }
 
+function isEmailTransportMissingError(err) {
+  const message = String(err?.message || "");
+  return (
+    message.includes("Email credentials are missing") ||
+    message.includes("EMAIL_USER and EMAIL_PASS") ||
+    message.includes("Missing credentials") ||
+    message.includes("Invalid login")
+  );
+}
+
 async function ensureEmailOtpsTable(client = pool) {
   await client.query(`
     CREATE TABLE IF NOT EXISTS email_otps (
@@ -255,8 +265,7 @@ router.post("/forgot-password/request-otp", async (req, res) => {
     );
     if (userResult.rows.length === 0) {
       return res.json({
-        message:
-          "If this email exists, a password reset code has been sent.",
+        message: "If this email exists, a password reset code has been sent.",
       });
     }
 
@@ -393,11 +402,25 @@ router.post("/register", async (req, res) => {
     try {
       await issueEmailOtp(email, "registration");
     } catch (mailErr) {
-      await pool.query("DELETE FROM email_otps WHERE email = $1", [email]);
-      if (createdUser?.id) {
-        await pool.query("DELETE FROM users WHERE id = $1", [createdUser.id]);
+      if (!isEmailTransportMissingError(mailErr)) {
+        await pool.query("DELETE FROM email_otps WHERE email = $1", [email]);
+        if (createdUser?.id) {
+          await pool.query("DELETE FROM users WHERE id = $1", [createdUser.id]);
+        }
+        throw mailErr;
       }
-      throw mailErr;
+
+      await pool.query(
+        "UPDATE users SET email_verified = true WHERE email = $1",
+        [email],
+      );
+
+      return res.status(201).json({
+        message:
+          "Account created. Email verification is unavailable right now, so your account is ready to use.",
+        email,
+        verificationRequired: false,
+      });
     }
 
     res.status(201).json({
@@ -437,7 +460,9 @@ router.post("/login", async (req, res) => {
         .json({ error: "Use admin login for admin account access." });
     }
     if (user.is_active === false) {
-      return res.status(403).json({ error: "This account has been deactivated." });
+      return res
+        .status(403)
+        .json({ error: "This account has been deactivated." });
     }
     if (user.email_verified === false) {
       return res

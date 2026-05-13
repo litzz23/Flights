@@ -7,15 +7,6 @@ const {
   normalizeSeatClass,
 } = require("../utils/seatPricing");
 
-async function ensureDestinationMediaColumns() {
-  await pool.query(
-    "ALTER TABLE destinations ADD COLUMN IF NOT EXISTS image_url TEXT",
-  );
-  await pool.query(
-    "ALTER TABLE destinations ADD COLUMN IF NOT EXISTS tagline VARCHAR(255)",
-  );
-}
-
 function normalizedCityExpr(valueSql) {
   return `REGEXP_REPLACE(LOWER(TRIM(${valueSql})), '(.)\\1+', '\\1', 'g')`;
 }
@@ -23,7 +14,6 @@ function normalizedCityExpr(valueSql) {
 router.get("/", async (req, res) => {
   try {
     await syncPastFlightsStatus(pool);
-    await ensureDestinationMediaColumns();
     const { origin, destination, date, status } = req.query;
 
     let query = `
@@ -121,7 +111,6 @@ router.get("/meta", async (req, res) => {
 router.get("/deals", async (req, res) => {
   try {
     await syncPastFlightsStatus(pool);
-    await ensureDestinationMediaColumns();
     const { origin, include_all } = req.query;
     let query = `
       SELECT
@@ -227,7 +216,6 @@ router.get("/:flightId/seat-price", async (req, res) => {
 router.get("/:id", async (req, res) => {
   try {
     await syncPastFlightsStatus(pool);
-    await ensureDestinationMediaColumns();
     const result = await pool.query(
       `SELECT
         f.*,
