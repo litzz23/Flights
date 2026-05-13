@@ -44,7 +44,8 @@ function isEmailTransportMissingError(err) {
     message.includes("Email credentials are missing") ||
     message.includes("EMAIL_USER and EMAIL_PASS") ||
     message.includes("Missing credentials") ||
-    message.includes("Invalid login")
+    message.includes("Invalid login") ||
+    message.includes("timed out")
   );
 }
 
@@ -147,21 +148,26 @@ async function issueEmailOtp(email, purpose = "verification") {
       "Email credentials are missing. Set EMAIL_USER and EMAIL_PASS.",
     );
   }
-  await transporter.sendMail({
-    from: `"Binayak Airlines" <${process.env.EMAIL_USER}>`,
-    to: email,
-    subject:
-      purpose === "password_reset"
-        ? "Binayak Airlines password reset code"
-        : purpose === "registration"
-          ? "Your Binayak Airlines verification code"
-          : "Binayak Airlines email verification code",
-    text:
-      purpose === "password_reset"
-        ? `Your Binayak Airlines password reset code is ${otpCode}. It expires in 10 minutes.`
-        : `Your Binayak Airlines verification code is ${otpCode}. It expires in 10 minutes.`,
-    html: buildOtpEmailHtml(otpCode, purpose),
-  });
+  await Promise.race([
+    transporter.sendMail({
+      from: `"Binayak Airlines" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject:
+        purpose === "password_reset"
+          ? "Binayak Airlines password reset code"
+          : purpose === "registration"
+            ? "Your Binayak Airlines verification code"
+            : "Binayak Airlines email verification code",
+      text:
+        purpose === "password_reset"
+          ? `Your Binayak Airlines password reset code is ${otpCode}. It expires in 10 minutes.`
+          : `Your Binayak Airlines verification code is ${otpCode}. It expires in 10 minutes.`,
+      html: buildOtpEmailHtml(otpCode, purpose),
+    }),
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error("Email sending timed out.")), 15000);
+    }),
+  ]);
 
   return otpCode;
 }
@@ -409,16 +415,25 @@ router.post("/register", async (req, res) => {
         }
         throw mailErr;
       }
+
+      await pool.query(
+        "UPDATE users SET email_verified = true WHERE email = $1",
+        [email],
+      );
+
+      return res.status(201).json({
+        message:
+          "Account created. Email verification is unavailable right now, so your account is ready to use.",
+        email,
+        verificationRequired: false,
+      });
     }
 
-    await pool.query("UPDATE users SET email_verified = true WHERE email = $1", [
-      email,
-    ]);
-
     res.status(201).json({
-      message: "Account created. You can sign in right away.",
+      message:
+        "Account created. Check your email for the OTP to verify your account.",
       email,
-      verificationRequired: false,
+      verificationRequired: true,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -454,6 +469,12 @@ router.post("/login", async (req, res) => {
       return res
         .status(403)
         .json({ error: "This account has been deactivated." });
+    }
+    if (user.email_verified === false) {
+      await pool.query("UPDATE users SET email_verified = true WHERE id = $1", [
+        user.id,
+      ]);
+      user.email_verified = true;
     }
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
