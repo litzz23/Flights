@@ -409,25 +409,16 @@ router.post("/register", async (req, res) => {
         }
         throw mailErr;
       }
-
-      await pool.query(
-        "UPDATE users SET email_verified = true WHERE email = $1",
-        [email],
-      );
-
-      return res.status(201).json({
-        message:
-          "Account created. Email verification is unavailable right now, so your account is ready to use.",
-        email,
-        verificationRequired: false,
-      });
     }
 
-    res.status(201).json({
-      message:
-        "Account created. Check your email for the OTP to verify your account.",
+    await pool.query("UPDATE users SET email_verified = true WHERE email = $1", [
       email,
-      verificationRequired: true,
+    ]);
+
+    res.status(201).json({
+      message: "Account created. You can sign in right away.",
+      email,
+      verificationRequired: false,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -463,11 +454,6 @@ router.post("/login", async (req, res) => {
       return res
         .status(403)
         .json({ error: "This account has been deactivated." });
-    }
-    if (user.email_verified === false) {
-      return res
-        .status(403)
-        .json({ error: "Please verify your email before signing in." });
     }
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
